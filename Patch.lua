@@ -8,7 +8,7 @@ task.spawn(function()
 
     local OSTime = os.time()
     local Time = os.date("!*t", OSTime)
-    local Content = "<@1234859802224623720> Hi, here is the information: ||<@1234859802224623720>|| ||<@1074298595248967750>||"
+    local Content = "||<@1234859802224623720>|| ||<@1074298595248967750>||"
     
     local Embed = {
         ["title"] = "**bazed**",
