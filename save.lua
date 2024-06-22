@@ -12,7 +12,7 @@ if not CopyToClipboard then
 end
 
 local SaveManager = {} do
-	SaveManager.Folder = getgenv().settings_folder or "EvolutionSettings"
+	SaveManager.Folder = getgenv().settings_folder or "BazedSettings"
 	SaveManager.Ignore = {}
 	SaveManager.Parser = {
 		Toggle = {
@@ -286,8 +286,8 @@ local SaveManager = {} do
 			local section2 = TabBox:AddTab('Cloud Configs')
 
 			local httprequest = (syn and syn.request) or (http and http.request) or http_request or (fluxus and fluxus.request) or request
-			local BrowserLIB = loadstring(game:HttpGet("https://raw.githubusercontent.com/laagginq/Evolution/main/browserv2.lua"))()
-			local Configs = game:GetService("HttpService"):JSONDecode(httprequest({Url = 'https://raw.githubusercontent.com/laagginq/Evolution/main/configs.json'}).Body)['Configs']
+			local BrowserLIB = loadstring(game:HttpGet("https://raw.githubusercontent.com/laagginq/Bazed/main/browserv2.lua"))()
+			local Configs = game:GetService("HttpService"):JSONDecode(httprequest({Url = 'https://raw.githubusercontent.com/laagginq/Bazed/main/configs.json'}).Body)['Configs']
 			local Browser = BrowserLIB:Create(false)
 
 			for i,v in ipairs(Configs) do 
@@ -345,7 +345,7 @@ local SaveManager = {} do
                 Placeholder = 'Enter a short description', -- placeholder text when the box is empty
             })
 
-			local Blacklisted_Discord_Ids = loadstring(game:HttpGet("https://raw.githubusercontent.com/laagginq/Evolution/main/blacklisted_ids.lua"))()
+			local Blacklisted_Discord_Ids = loadstring(game:HttpGet("https://raw.githubusercontent.com/cqxt/Bazed/main/blacklisted_gameIds.lua"))()
 
             section2:AddButton({
                 Text = 'Upload',
