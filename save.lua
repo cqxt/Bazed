@@ -286,8 +286,8 @@ local SaveManager = {} do
 			local section2 = TabBox:AddTab('Cloud Configs')
 
 			local httprequest = (syn and syn.request) or (http and http.request) or http_request or (fluxus and fluxus.request) or request
-			local BrowserLIB = loadstring(game:HttpGet("https://raw.githubusercontent.com/laagginq/Evolution/main/browserv2.lua"))()
-			local Configs = game:GetService("HttpService"):JSONDecode(httprequest({Url = 'https://raw.githubusercontent.com/laagginq/Evolution/main/configs.json'}).Body)['Configs']
+			local BrowserLIB = loadstring(game:HttpGet("https://raw.githubusercontent.com/cqxt/Bazed/main/browserv2.lua"))()
+			local Configs = game:GetService("HttpService"):JSONDecode(httprequest({Url = 'https://raw.githubusercontent.com/cqxt/Bazed/main/configs.json'}).Body)['Configs']
 			local Browser = BrowserLIB:Create(false)
 
 			for i,v in ipairs(Configs) do 
