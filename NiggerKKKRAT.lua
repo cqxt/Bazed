@@ -121,7 +121,7 @@ getgenv().Bazed = {
                 ]]
             }
         },
-        ["Visible Check"] = true, -- // Will check if target is behind a wall
+        ["Visible Check"] = false, -- // Will check if target is behind a wall
         ["K.O Check"] = false, -- // Will check if target is knocked or grabbed
         ["Crew Check"] = false, -- // Will check if target is in your crew
         ["Friend Check"] = false, -- // Will check if target is your friend if not will not lock
@@ -2537,7 +2537,7 @@ if Bazed["Options"]["Internal"].Enabled then
             Default = Bazed["Silent Aim"]["Target Mode Bind"],
             SyncToggleState = false,
         
-            Mode = 'Always',
+            Mode = 'Toggle',
         
             Text = 'Silent Keybind',
             NoUI = false, 
@@ -2754,7 +2754,7 @@ if Bazed["Options"]["Internal"].Enabled then
             Default = Bazed["Cam Lock"]["Target Mode Bind"],
             SyncToggleState = false,
         
-            Mode = 'Always',
+            Mode = 'Toggle',
         
             Text = 'Cam Lock Keybind',
             NoUI = false, 
@@ -3663,7 +3663,7 @@ if Bazed["Options"]["Internal"].Enabled then
             Default = Bazed["Macro"]["Bind"],
             SyncToggleState = false,
         
-            Mode = 'Always',
+            Mode = 'Toggle',
         
             Text = 'Macro',
             NoUI = false, 
@@ -3761,7 +3761,7 @@ if Bazed["Options"]["Internal"].Enabled then
             Default = Bazed["Fake Spike"]["Bind"],
             SyncToggleState = false,
         
-            Mode = 'Always',
+            Mode = 'Toggle',
         
             Text = 'Fake Spike',
             NoUI = false, 
@@ -3802,7 +3802,7 @@ if Bazed["Options"]["Internal"].Enabled then
             Default = Bazed["Panic"]["Bind"],
             SyncToggleState = false,
         
-            Mode = 'Always',
+            Mode = 'Toggle',
         
             Text = 'Panic',
             NoUI = false, 
@@ -3872,7 +3872,7 @@ if Bazed["Options"]["Internal"].Enabled then
             Default = Bazed["Gun Sorting"]["Bind"],
             SyncToggleState = false,
         
-            Mode = 'Always',
+            Mode = 'Toggle',
         
             Text = 'Sort Guns',
             NoUI = false, 
