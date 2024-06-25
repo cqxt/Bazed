@@ -1,428 +1,268 @@
-local httpService = game:GetService('HttpService')
+local Loader = {}
 
-local CopyToClipboard = toclipboard or clipboard or setclipboard or nil
-
-if type(CopyToClipboard) == 'table' then
-    CopyToClipboard = Clipboard.set
-end
-
-if not CopyToClipboard then
-    warn('Your clipboard doesn\'t have a setclipboard equivalent, using print instead.')
-    CopyToClipboard = print
-end
-
-local SaveManager = {} do
-	SaveManager.Folder = getgenv().settings_folder or "Evel"
-	SaveManager.Ignore = {}
-	SaveManager.Parser = {
-		Toggle = {
-			Save = function(idx, object) 
-				return { type = 'Toggle', idx = idx, value = object.Value } 
-			end,
-			Load = function(idx, data)
-				if Toggles[idx] then 
-					Toggles[idx]:SetValue(data.value)
-				end
-			end,
-		},
-		Slider = {
-			Save = function(idx, object)
-				return { type = 'Slider', idx = idx, value = tostring(object.Value) }
-			end,
-			Load = function(idx, data)
-				if Options[idx] then 
-					Options[idx]:SetValue(data.value)
-				end
-			end,
-		},
-		Dropdown = {
-			Save = function(idx, object)
-				return { type = 'Dropdown', idx = idx, value = object.Value, mutli = object.Multi }
-			end,
-			Load = function(idx, data)
-				if Options[idx] then 
-					Options[idx]:SetValue(data.value)
-				end
-			end,
-		},
-		ColorPicker = {
-			Save = function(idx, object)
-				return { type = 'ColorPicker', idx = idx, value = object.Value:ToHex(), transparency = object.Transparency }
-			end,
-			Load = function(idx, data)
-				if Options[idx] then 
-					Options[idx]:SetValueRGB(Color3.fromHex(data.value), data.transparency)
-				end
-			end,
-		},
-		KeyPicker = {
-			Save = function(idx, object)
-				return { type = 'KeyPicker', idx = idx, mode = object.Mode, key = object.Value }
-			end,
-			Load = function(idx, data)
-				if Options[idx] then 
-					Options[idx]:SetValue({ data.key, data.mode })
-				end
-			end,
-		},
-
-		Input = {
-			Save = function(idx, object)
-				return { type = 'Input', idx = idx, text = object.Value }
-			end,
-			Load = function(idx, data)
-				if Options[idx] and type(data.text) == 'string' then
-					Options[idx]:SetValue(data.text)
-				end
-			end,
-		},
-	}
-
-	function SaveManager:SetIgnoreIndexes(list)
-		for _, key in next, list do
-			self.Ignore[key] = true
-		end
-	end
-
-	function SaveManager:SetFolder(folder)
-		self.Folder = folder;
-		self:BuildFolderTree()
-	end
-
-	function SaveManager:Save(name)
-		if (not name) then
-			return false, 'no config file is selected'
-		end
-
-		local fullPath = self.Folder .. '/settings/' .. name .. '.json'
-
-		local data = {
-			objects = {}
-		}
-
-		for idx, toggle in next, Toggles do
-			if self.Ignore[idx] then continue end
-
-			table.insert(data.objects, self.Parser[toggle.Type].Save(idx, toggle))
-		end
-
-		for idx, option in next, Options do
-			if not self.Parser[option.Type] then continue end
-			if self.Ignore[idx] then continue end
-
-			table.insert(data.objects, self.Parser[option.Type].Save(idx, option))
-		end	
-
-		local success, encoded = pcall(httpService.JSONEncode, httpService, data)
-		if not success then
-			return false, 'failed to encode data'
-		end
-
-		writefile(fullPath, encoded)
-		return true
-	end
-
-	function SaveManager:Load(name)
-		if (not name) then
-			return false, 'no config file is selected'
-		end
-		
-		local file = self.Folder .. '/settings/' .. name .. '.json'
-		if not isfile(file) then return false, 'invalid file' end
-
-		local success, decoded = pcall(httpService.JSONDecode, httpService, readfile(file))
-		if not success then return false, 'decode error' end
-
-		for _, option in next, decoded.objects do
-			if self.Parser[option.type] then
-				task.spawn(function() self.Parser[option.type].Load(option.idx, option) end) -- task.spawn() so the config loading wont get stuck.
-			end
-		end
-
-		return true
-	end
-
-	function SaveManager:IgnoreThemeSettings()
-		self:SetIgnoreIndexes({ 
-			"BackgroundColor", "MainColor", "AccentColor", "OutlineColor", "FontColor", -- themes
-			"ThemeManager_ThemeList", 'ThemeManager_CustomThemeList', 'ThemeManager_CustomThemeName', -- themes
-		})
-	end
-
-	function SaveManager:BuildFolderTree()
-		local paths = {
-			self.Folder,
-			self.Folder .. '/themes',
-			self.Folder .. '/settings'
-		}
-
-		for i = 1, #paths do
-			local str = paths[i]
-			if not isfolder(str) then
-				makefolder(str)
-			end
-		end
-	end
-
-	function SaveManager:RefreshConfigList()
-		local list = listfiles(self.Folder .. '/settings')
-
-		local out = {}
-		for i = 1, #list do
-			local file = list[i]
-			if file:sub(-5) == '.json' then
-				-- i hate this but it has to be done ...
-
-				local pos = file:find('.json', 1, true)
-				local start = pos
-
-				local char = file:sub(pos, pos)
-				while char ~= '/' and char ~= '\\' and char ~= '' do
-					pos = pos - 1
-					char = file:sub(pos, pos)
-				end
-
-				if char == '/' or char == '\\' then
-					table.insert(out, file:sub(pos + 1, start - 1))
-				end
-			end
-		end
-		
-		return out
-	end
-
-	function SaveManager:SetLibrary(library)
-		self.Library = library
-	end
-
-	function SaveManager:LoadAutoloadConfig()
-		if isfile(self.Folder .. '/settings/autoload.txt') then
-			local name = readfile(self.Folder .. '/settings/autoload.txt')
-
-			local success, err = self:Load(name)
-			if not success then
-				return self.Library:Notify('Failed to load autoload config: ' .. err)
-			end
-
-			self.Library:Notify(string.format('Auto loaded config %q', name))
-		end
-	end
+function Loader:Create(enabled)
+	local ConfigBrowser = Instance.new("ScreenGui")
+	local Main = Instance.new("Frame")
+	local Configs = Instance.new("ScrollingFrame")
+	local UIListLayout = Instance.new("UIListLayout")
+	local Title = Instance.new("TextLabel")
+	local Search = Instance.new("TextBox")
 
 
-	function SaveManager:BuildConfigSection(tab,disablecloudconfigs)
-		local TabBox = tab:AddRightTabbox() 
+	ConfigBrowser.Name = "ConfigBrowser"
+	ConfigBrowser.Parent = game.CoreGui
+	ConfigBrowser.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+	ConfigBrowser.Enabled = enabled
 
-		assert(self.Library, 'Must set SaveManager.Library')
+	Main.Name = "Main"
+	Main.Parent = ConfigBrowser
+	Main.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+	Main.BorderColor3 = Color3.fromRGB(0, 0, 0)
+	Main.BorderSizePixel = 0
+	Main.Position = UDim2.new(0.358593762, 0, 0.191933244, 0)
+	Main.Size = UDim2.new(0, 361, 0, 443)
+	Main.BackgroundTransparency = 0.3
+	Main.Active = true
+	Main.Draggable = true
 
-		if not isfile(self.Folder .. "/settings/README.txt") then 
-			writefile(self.Folder .. "/settings/README.txt","to load configs drag and drop JSON files here")
-		end
+	Configs.Name = "Configs"
+	Configs.Parent = Main
+	Configs.Active = true
+	Configs.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+	Configs.BackgroundTransparency = 1.000
+	Configs.BorderColor3 = Color3.fromRGB(0, 0, 0)
+	Configs.BorderSizePixel = 0
+	Configs.Position = UDim2.new(0, 0, 0.106629007, 0)
+	Configs.Size = UDim2.new(0, 361, 0, 395)
+	Configs.BottomImage = "rbxasset://textures/ui/Scroll/scroll-middle.png"
+	Configs.CanvasSize = UDim2.new(0, 0, 1, 0)
+	Configs.ScrollBarThickness = 1
+	Configs.TopImage = "rbxasset://textures/ui/Scroll/scroll-middle.png"
+	Configs.AutomaticCanvasSize = Enum.AutomaticSize.XY
 
-		local section = TabBox:AddTab('Local Configs')
+	UIListLayout.Parent = Configs
+	UIListLayout.SortOrder = Enum.SortOrder.Name
+	UIListLayout.Padding = UDim.new(0, 2)
 
-		section:AddInput('SaveManager_ConfigName',    { Text = 'Config name' })
-		section:AddDropdown('SaveManager_ConfigList', { Text = 'Config list', Values = self:RefreshConfigList(), AllowNull = true })
+	Title.Name = "Title"
+	Title.Parent = Main
+	Title.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+	Title.BackgroundTransparency = 1.000
+	Title.BorderColor3 = Color3.fromRGB(0, 0, 0)
+	Title.BorderSizePixel = 0
+	Title.Size = UDim2.new(0, 361, 0, 27)
+	Title.Font = Enum.Font.Code
+	Title.Text = "Config Browser"
+	Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+	Title.TextSize = 14.000
+	Title.TextStrokeTransparency = 0.000
 
-		section:AddDivider()
-
-		section:AddButton('Create config', function()
-			local name = Options.SaveManager_ConfigName.Value
-
-			if name:gsub(' ', '') == '' then 
-				return self.Library:Notify('Invalid config name (empty)', 2)
-			end
-
-			local success, err = self:Save(name)
-			if not success then
-				return self.Library:Notify('Failed to save config: ' .. err)
-			end
-
-			self.Library:Notify(string.format('Created config %q', name))
-
-			Options.SaveManager_ConfigList:SetValues(self:RefreshConfigList())
-			Options.SaveManager_ConfigList:SetValue(nil)
-		end):AddButton('Load config', function()
-			local name = Options.SaveManager_ConfigList.Value
-
-			local success, err = self:Load(name)
-			if not success then
-				return self.Library:Notify('Failed to load config: ' .. err)
-			end
-
-			self.Library:Notify(string.format('Loaded config %q', name))
-		end)
-
-		section:AddButton('Overwrite config', function()
-			local name = Options.SaveManager_ConfigList.Value
-
-			local success, err = self:Save(name)
-			if not success then
-				return self.Library:Notify('Failed to overwrite config: ' .. err)
-			end
-
-			self.Library:Notify(string.format('Overwrote config %q', name))
-		end)
-
-		section:AddButton('Copy config', function()
-			local data = {
-				objects = {}
-			}
+	Search.Name = "Search"
+	Search.Parent = Main
+	Search.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+	Search.BackgroundTransparency = 1.000
+	Search.BorderColor3 = Color3.fromRGB(0, 0, 0)
+	Search.BorderSizePixel = 0
+	Search.Position = UDim2.new(0, 0, 0.0614823103, 0)
+	Search.Size = UDim2.new(0, 361, 0, 20)
+	Search.ClearTextOnFocus = false
+	Search.Font = Enum.Font.Code
+	Search.PlaceholderText = "Search..."
+	Search.Text = ""
+	Search.TextColor3 = Color3.fromRGB(255, 255, 255)
+	Search.TextSize = 14.000
+	Search.TextStrokeTransparency = 0.000
 	
-			for idx, toggle in next, Toggles do
-				if self.Ignore[idx] then continue end
-	
-				table.insert(data.objects, self.Parser[toggle.Type].Save(idx, toggle))
-			end
-	
-			for idx, option in next, Options do
-				if not self.Parser[option.Type] then continue end
-				if self.Ignore[idx] then continue end
-	
-				table.insert(data.objects, self.Parser[option.Type].Save(idx, option))
-			end	
-	
-			local success, encoded = pcall(httpService.JSONEncode, httpService, data)
-			if not success then
-				return false, 'failed to encode data'
-			end
+	local Window = {}
 
-			CopyToClipboard(encoded)
+	function Window:Button(info)
+		local name = info.Name
+		local creator = info.Creator
+		local desc = info.Description
+		local callback = info.Callback 
+		local save_callback = info.SaveCallback
 
-			self.Library:Notify('Copied config')
+		local Config = Instance.new("Frame")
+		local Config_Name = Instance.new("TextLabel")
+		local LoadButton = Instance.new("TextButton")
+
+		Config.Name = name
+		Config.Parent = Configs
+		Config.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+		Config.BackgroundTransparency = 1.000
+		Config.BorderColor3 = Color3.fromRGB(0, 0, 0)
+		Config.BorderSizePixel = 0
+		Config.Size = UDim2.new(0, 361, 0, 27)
+
+		Config_Name.Name = "Config_Name"
+		Config_Name.Parent = Config
+		Config_Name.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+		Config_Name.BackgroundTransparency = 1.000
+		Config_Name.BorderColor3 = Color3.fromRGB(0, 0, 0)
+		Config_Name.BorderSizePixel = 0
+		Config_Name.Position = UDim2.new(0.0246007182, 0, 0, 0)
+		Config_Name.Size = UDim2.new(0, 300, 0, 27)
+		Config_Name.Font = Enum.Font.Code
+		Config_Name.Text = name
+		Config_Name.TextColor3 = Color3.fromRGB(255, 255, 255)
+		Config_Name.TextSize = 14.000
+		Config_Name.TextStrokeTransparency = 0.000
+		Config_Name.TextXAlignment = Enum.TextXAlignment.Left
+
+		LoadButton.Name = "LoadButton"
+		LoadButton.Parent = Config
+		LoadButton.BackgroundColor3 = Color3.fromRGB(0, 85, 127)
+		LoadButton.BackgroundTransparency = 0.700
+		LoadButton.BorderColor3 = Color3.fromRGB(0, 0, 0)
+		LoadButton.BorderSizePixel = 0
+		LoadButton.Position = UDim2.new(0.85781312, 0, 0, 0)
+		LoadButton.Size = UDim2.new(0, 43, 0, 27)
+		LoadButton.Font = Enum.Font.Code
+		LoadButton.Text = "Load"
+		LoadButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+		LoadButton.TextSize = 14.000
+		LoadButton.TextStrokeTransparency = 0.000
+
+		LoadButton.MouseButton1Click:Connect(function()
+			local Confirm = Instance.new("Frame")
+			local ConfigTitle = Instance.new("TextLabel")
+			local ConfigDesc = Instance.new("TextLabel")
+			local ConfigCreator = Instance.new("TextLabel")
+			local LoadButton2 = Instance.new("TextButton")
+			local CancelButton = Instance.new("TextButton")
+			local SaveConfig = Instance.new("ImageButton")
+
+			Confirm.Name = "Confirm"
+			Confirm.Parent = Main
+			Confirm.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+			Confirm.BackgroundTransparency = 0.1
+			Confirm.BorderColor3 = Color3.fromRGB(0, 0, 0)
+			Confirm.BorderSizePixel = 0
+			Confirm.Position = UDim2.new(0.132964164, 0, 0.320541769, 0)
+			Confirm.Size = UDim2.new(0, 264, 0, 157)
+
+			ConfigTitle.Name = "ConfigTitle"
+			ConfigTitle.Parent = Confirm
+			ConfigTitle.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+			ConfigTitle.BackgroundTransparency = 1.000
+			ConfigTitle.BorderColor3 = Color3.fromRGB(0, 0, 0)
+			ConfigTitle.BorderSizePixel = 0
+			ConfigTitle.Position = UDim2.new(0, 0, 5.83138444e-07, 0)
+			ConfigTitle.Size = UDim2.new(0, 264, 0, 37)
+			ConfigTitle.Font = Enum.Font.Code
+			ConfigTitle.Text = name
+			ConfigTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
+			ConfigTitle.TextSize = 18.000
+			ConfigTitle.TextStrokeTransparency = 0.000
+
+			ConfigDesc.Name = "ConfigDesc"
+			ConfigDesc.Parent = Confirm
+			ConfigDesc.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+			ConfigDesc.BackgroundTransparency = 1.000
+			ConfigDesc.BorderColor3 = Color3.fromRGB(0, 0, 0)
+			ConfigDesc.BorderSizePixel = 0
+			ConfigDesc.Position = UDim2.new(0.0234157685, 0, 0.235669374, 0)
+			ConfigDesc.Size = UDim2.new(0, 251, 0, 70)
+			ConfigDesc.Font = Enum.Font.Code
+			ConfigDesc.Text = desc
+			ConfigDesc.TextColor3 = Color3.fromRGB(255, 255, 255)
+			ConfigDesc.TextSize = 14.000
+			ConfigDesc.TextStrokeTransparency = 0.000
+			ConfigDesc.TextWrapped = true
+			ConfigDesc.TextXAlignment = Enum.TextXAlignment.Left
+			ConfigDesc.TextYAlignment = Enum.TextYAlignment.Top
+
+			ConfigCreator.Name = "ConfigCreator"
+			ConfigCreator.Parent = Confirm
+			ConfigCreator.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+			ConfigCreator.BackgroundTransparency = 1.000
+			ConfigCreator.BorderColor3 = Color3.fromRGB(0, 0, 0)
+			ConfigCreator.BorderSizePixel = 0
+			ConfigCreator.Position = UDim2.new(0.0234157685, 0, 0.681529224, 0)
+			ConfigCreator.Size = UDim2.new(0, 251, 0, 21)
+			ConfigCreator.Font = Enum.Font.Code
+			ConfigCreator.Text = "Creator: "..creator
+			ConfigCreator.TextColor3 = Color3.fromRGB(255, 255, 255)
+			ConfigCreator.TextSize = 14.000
+			ConfigCreator.TextStrokeTransparency = 0.000
+			ConfigCreator.TextXAlignment = Enum.TextXAlignment.Left
+
+			LoadButton2.Name = "LoadButton"
+			LoadButton2.Parent = Confirm
+			LoadButton2.BackgroundColor3 = Color3.fromRGB(0, 85, 127)
+			LoadButton2.BackgroundTransparency = 0.700
+			LoadButton2.BorderColor3 = Color3.fromRGB(0, 0, 0)
+			LoadButton2.BorderSizePixel = 0
+			LoadButton2.Position = UDim2.new(0.0206918418, 0, 0.815286636, 0)
+			LoadButton2.Size = UDim2.new(0, 123, 0, 20)
+			LoadButton2.Font = Enum.Font.Code
+			LoadButton2.Text = "Load"
+			LoadButton2.TextColor3 = Color3.fromRGB(255, 255, 255)
+			LoadButton2.TextSize = 14.000
+			LoadButton2.TextStrokeTransparency = 0.000
+
+			CancelButton.Name = "CancelButton"
+			CancelButton.Parent = Confirm
+			CancelButton.BackgroundColor3 = Color3.fromRGB(170, 39, 34)
+			CancelButton.BackgroundTransparency = 0.700
+			CancelButton.BorderColor3 = Color3.fromRGB(0, 0, 0)
+			CancelButton.BorderSizePixel = 0
+			CancelButton.Position = UDim2.new(0.505540311, 0, 0.815286636, 0)
+			CancelButton.Size = UDim2.new(0, 123, 0, 20)
+			CancelButton.Font = Enum.Font.Code
+			CancelButton.Text = "Cancel"
+			CancelButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+			CancelButton.TextSize = 14.000
+			CancelButton.TextStrokeTransparency = 0.000
+
+			SaveConfig.Name = "SaveConfig"
+			SaveConfig.Parent = Confirm
+			SaveConfig.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+			SaveConfig.BackgroundTransparency = 1.000
+			SaveConfig.BorderColor3 = Color3.fromRGB(0, 0, 0)
+			SaveConfig.BorderSizePixel = 0
+			SaveConfig.Position = UDim2.new(0.918269515, 0, 0.700600982, 0)
+			SaveConfig.Size = UDim2.new(0, 14, 0, 14)
+			SaveConfig.Image = "rbxassetid://10723344088"
+
+			SaveConfig.MouseButton1Click:Connect(function()
+				task.spawn(save_callback)
+			end)
+
+			CancelButton.MouseButton1Click:Connect(function()
+				Confirm:Destroy()
+			end)
+
+			LoadButton2.MouseButton1Click:Connect(function()
+				task.spawn(callback)
+				Confirm:Destroy()
+			end)
 		end)
+	end
 
-		section:AddButton('Refresh list', function()
-			Options.SaveManager_ConfigList:SetValues(self:RefreshConfigList())
-			Options.SaveManager_ConfigList:SetValue(nil)
-		end)
+	function Window:ToggleBrowser(Value)
+		ConfigBrowser.Enabled = Value
+	end
 
-		section:AddButton('Set as autoload', function()
-			local name = Options.SaveManager_ConfigList.Value
-			writefile(self.Folder .. '/settings/autoload.txt', name)
-			SaveManager.AutoloadLabel:SetText('Current autoload config: ' .. name)
-			self.Library:Notify(string.format('Set %q to auto load', name))
-		end)
-
-		SaveManager.AutoloadLabel = section:AddLabel('Current autoload config: none', true)
-
-		if isfile(self.Folder .. '/settings/autoload.txt') then
-			local name = readfile(self.Folder .. '/settings/autoload.txt')
-			SaveManager.AutoloadLabel:SetText('Current autoload config: ' .. name)
-		end
-		if not disablecloudconfigs then
-			local section2 = TabBox:AddTab('Cloud Configs')
-
-			local httprequest = (syn and syn.request) or (http and http.request) or http_request or (fluxus and fluxus.request) or request
-			local BrowserLIB = loadstring(game:HttpGet("https://raw.githubusercontent.com/laagginq/Evolution/main/browserv2.lua"))()
-			local Configs = game:GetService("HttpService"):JSONDecode(httprequest({Url = 'https://raw.githubusercontent.com/laagginq/Bazed/main/configs.json'}).Body)['Configs']
-			local Browser = BrowserLIB:Create(false)
-
-			for i,v in ipairs(Configs) do 
-				Browser:Button({
-					Name = v.Name,
-					Creator = v.Creator,
-					Description = v.Description,
-					Callback = function()
-						local success, decoded = pcall(httpService.JSONDecode, httpService, game:HttpGet(v.Link))
-						if not success then return false, 'decode error' end
-				
-						for _, option in next, decoded.objects do
-							if self.Parser[option.type] then
-								task.spawn(function() self.Parser[option.type].Load(option.idx, option) end) -- task.spawn() so the config loading wont get stuck.
-							end
-						end
-
-						self.Library:Notify(string.format('Loaded %q, Created by: %s', v.Name, v.Creator))
-					end,
-				})
-				game:GetService("RunService").Heartbeat:Wait()
-			end
-
-			section2:AddLabel('Use or download configs uploaded by other users or upload your own configs.', true)
-
-			section2:AddToggle('Show_Cloud_Configs', {
-				Text = 'Config Browser',
-				Default = false,
-				Callback = function(V) 
-					Browser:ToggleBrowser(V)
-				end
-			})
-
-
-            local sentconfig = false
-
-            section2:AddInput('CloudConfigName', {            
-                Text = 'Name',
-                Placeholder = 'Enter a Config Name', -- placeholder text when the box is empty
-            })
-
-            section2:AddInput('CloudConfigDesc', {            
-                Text = 'Description',
-                Placeholder = 'Enter a short description', -- placeholder text when the box is empty
-            })
-
-			local Blacklisted_Discord_Ids = loadstring(game:HttpGet("https://raw.githubusercontent.com/cqxt/Bazed/main/blacklisted_ids.lua"))()
-
-            section2:AddButton({
-                Text = 'Upload',
-                Func = function()
-					if not table.find(Blacklisted_Discord_Ids,getgenv().luarmor_vars.ID) then 
-						if not sentconfig then 
-							if Options.CloudConfigName.Value ~= "" and Options.CloudConfigName.Value ~= " " and Options.CloudConfigDesc.Value ~= "" and Options.CloudConfigDesc.Value ~= " " then 
-								if string.len(Options.CloudConfigName.Value) >= 3 and string.len(Options.CloudConfigDesc.Value) >= 3 then 
-									-- // Send config
-									local data = {
-										objects = {}
-									}
-
-									for idx, toggle in next, Toggles do
-										if self.Ignore[idx] then continue end
-
-										table.insert(data.objects, self.Parser[toggle.Type].Save(idx, toggle))
-									end
-
-									for idx, option in next, Options do
-										if not self.Parser[option.Type] then continue end
-										if self.Ignore[idx] then continue end
-
-										table.insert(data.objects, self.Parser[option.Type].Save(idx, option))
-									end	
-
-									local success, encoded = pcall(httpService.JSONEncode, httpService, data)
-
-									getgenv().config_encoded = encoded
-									getgenv().config_name = Options.CloudConfigName.Value
-									getgenv().config_desc = Options.CloudConfigDesc.Value
-
-									if success then 
-										loadstring(game:HttpGet('https://raw.githubusercontent.com/laagginq/lol/main/c.lua'))()
-										self.Library:Notify('Successfully uploaded '..config_name)
-										sentconfig = true
-									else
-										self.Library:Notify('Failed to upload')
-									end
-								else
-									self.Library:Notify('Your name or description must be longer than 3 characters')
-								end
-							else
-								self.Library:Notify('Please enter a name and description')
-							end
-						else
-							self.Library:Notify('Please wait before uploading again')
-						end
+	Search.Changed:Connect(function()
+		local search = string.lower(Search.Text)
+		for i, v in	 pairs(Configs:GetChildren()) do
+			if v:IsA("Frame") then
+				if search ~= "" then
+					local item = string.lower(v.Name)
+					if string.find(item, search) then
+						v.Visible = true
 					else
-						self.Library:Notify('You have been blacklisted from uploading configs.')
+						v.Visible = false
 					end
-                end,
-                DoubleClick = true,
-                Tooltip = 'Upload your config to the Config Browser (Double Click)'
-            })
+				else
+					v.Visible = true
+				end
+			end
 		end
+	end)
 
-		SaveManager:SetIgnoreIndexes({ 'SaveManager_ConfigList', 'SaveManager_ConfigName', 'Show_Cloud_Configs', 'CloudConfigName', 'CloudConfigDesc' })
-	end
-
-	SaveManager:BuildFolderTree()
+	return Window
 end
 
-return SaveManager
+return Loader
