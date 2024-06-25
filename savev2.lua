@@ -12,7 +12,7 @@ if not CopyToClipboard then
 end
 
 local SaveManager = {} do
-	SaveManager.Folder = getgenv().settings_folder or "evelSettings"
+	SaveManager.Folder = getgenv().settings_folder or "Evel"
 	SaveManager.Ignore = {}
 	SaveManager.Parser = {
 		Toggle = {
