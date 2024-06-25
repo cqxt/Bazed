@@ -5,8 +5,8 @@ local ThemeManager = {} do
 
 	ThemeManager.Library = nil
 	ThemeManager.BuiltInThemes = {
-		['EvelWhite'] 		= { 1, httpService:JSONDecode('{"MainColor":"ffffff","AccentColor":"ffffff","OutlineColor":"ffffff","BackgroundColor":"a500ff","FontColor":"ffffff"}') },
-		['EvelBlack'] 			= { 2, httpService:JSONDecode('{"FontColor":"ffffff","MainColor":"1e1e1e","AccentColor":"a800ff","BackgroundColor":"232323","OutlineColor":"141414"}') },
+		['EvelWhite'] 		= { 2, httpService:JSONDecode('{"MainColor":"ffffff","AccentColor":"ffffff","OutlineColor":"ffffff","BackgroundColor":"a500ff","FontColor":"ffffff"}') },
+		['EvelBlack'] 			= { 1, httpService:JSONDecode('{"FontColor":"ffffff","MainColor":"1e1e1e","AccentColor":"a800ff","BackgroundColor":"232323","OutlineColor":"141414"}') },
 		['Fatality']		= { 3, httpService:JSONDecode('{"FontColor":"ffffff","MainColor":"1e1842","AccentColor":"c50754","BackgroundColor":"191335","OutlineColor":"3c355d"}') },
 		['Jester'] 			= { 4, httpService:JSONDecode('{"FontColor":"ffffff","MainColor":"242424","AccentColor":"db4467","BackgroundColor":"1c1c1c","OutlineColor":"373737"}') },
 		['Mint'] 			= { 5, httpService:JSONDecode('{"FontColor":"ffffff","MainColor":"242424","AccentColor":"3db488","BackgroundColor":"1c1c1c","OutlineColor":"373737"}') },
